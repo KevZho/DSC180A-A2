@@ -1,0 +1,5 @@
+data-test/*
+data/*
+!data/.gitkeep
+__pycache__/*
+matrix_*
