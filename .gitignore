@@ -1,5 +1,5 @@
-data-test/*
-data/*
-__pycache__/*
-matrix_*
+src/data-test/*
+src/data/*
+src/__pycache__/*
+src/matrix_*
 .ipynb_checkpoints/*

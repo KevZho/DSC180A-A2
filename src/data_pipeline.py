@@ -12,7 +12,7 @@ BASE_URL = None
 DOWNLOAD_PROBABILITY = None
 SIZE_LIMIT = None
 DOWNLOAD_AMOUNT = None
-with open('config.json', 'r') as config_file:
+with open('../config/test-params.json', 'r') as config_file:
     config = json.load(config_file)
     BASE_URL = config['base_url']
     DOWNLOAD_PROBABILITY = config['download_probability']
@@ -25,14 +25,14 @@ def get_all_sitemap_links(url):
     r = requests.get(url)
     soup = BeautifulSoup(r.text, 'xml')
     return (x.find('loc').text for x in soup.find_all('sitemap'))
-def download_gzip_link(url, visit_probability=.5, limit_per_link=2):
+def download_gzip_link(url, visit_probability=.5):
     r = requests.get(url)
     with gzip.GzipFile(fileobj=io.BytesIO(r.content)) as f:
         result = f.read()
         soup = BeautifulSoup(result, 'xml')
-        return (x.get('href') for i, x in enumerate(soup.find_all("xhtml:link", {
+        return (x.get('href') for x in soup.find_all("xhtml:link", {
             "hreflang": "en"
-        })[5:]) if x.get('media') is None and len(x.get('href').split('/')) == 5 and random.random() < visit_probability and i < limit_per_link)
+        })[5:] if x.get('media') is None and len(x.get('href').split('/')) == 5 and random.random() < visit_probability)
 def download_from_app_page(url):
     r = requests.get(url)
     soup = BeautifulSoup(r.text, 'html.parser')
@@ -59,12 +59,10 @@ def download_from_app_page(url):
         else:
             if link:
                 print('ignoring because size is %f' % fsize)
-def download_and_process_apks(amount, download_probability=.5, visit_probability=.5, size_limit=50, base_url='https://apkpure.com', limit_per_link=2):
-    if not os.path.isdir('data'):
-        os.mkdir('data')
+def download_and_process_apks(amount, download_probability=.5, visit_probability=.5, size_limit=50, base_url='https://apkpure.com'):
     threads = []
     for x in get_all_sitemap_links(BASE_URL + '/sitemap.xml'):
-        for link in download_gzip_link(x, visit_probability, limit_per_link):
+        for link in download_gzip_link(x, visit_probability):
             if random.random() < DOWNLOAD_PROBABILITY:
                 download = download_from_app_page(link)
                 if download is not None:
