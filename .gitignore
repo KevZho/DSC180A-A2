@@ -3,3 +3,4 @@ data/*
 !data/.gitkeep
 __pycache__/*
 matrix_*
+.ipynb_checkpoints/*

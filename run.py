@@ -2,7 +2,7 @@
 from data_pipeline import download_and_process_apks
 from tqdm import tqdm
 from scipy.sparse import csr_matrix
-import sys, json, stat, os, scipy.sparse, networkx as nx
+import sys, json, stat, os, scipy.sparse, networkx as nx, gc
 
 def main(targets, test=False):
     if len(targets) != 1:
@@ -20,8 +20,8 @@ def main(targets, test=False):
 
     if targets[0] == 'data':
         return download_and_process_apks(config['download_amount'], \
-                config['download_probability'], config['size_limit'], \
-                config['base_url'])
+                config['visit_probability'], config['download_probability'], \
+                config['size_limit'], config['base_url'])
     elif targets[0] == 'process':
         api_list = []
         app_list = []
@@ -39,7 +39,7 @@ def main(targets, test=False):
 
             for subdir, dirs, files in os.walk((config['path_benign'] + '/' + directory if not test else 'data-test')):
                 for i, file in enumerate(files):
-                    if config['files_per_app'] and config['files_per_app'] == i and not test:
+                    if config['files_per_app'] and config['files_per_app'] == i:
                         break
 
                     filepath = subdir + os.sep + file
@@ -48,7 +48,7 @@ def main(targets, test=False):
                         api_calls = set()
 
                         for j, line in enumerate(fp):
-                            if config['lines_per_file'] and config['lines_per_file'] == j and not test:
+                            if config['lines_per_file'] and config['lines_per_file'] == j:
                                 break
                             stripped = line.strip()
                             if stripped == '.end method':
@@ -95,27 +95,33 @@ def main(targets, test=False):
                                 if not api_same_package.has_edge(api_package, current_method_call):
                                     api_same_package.add_edge(api_package, current_method_call)
 
+        del seen_api
         matrix_A = nx.adjacency_matrix(app_to_api, api_list + app_list)[-len(app_list):, :-len(app_list)]
         scipy.sparse.save_npz('matrix_A.npz', matrix_A)
         print("A matrix saved")
-        del matrix_A
+        del matrix_A, app_to_api, app_list
         matrix_B = nx.adjacency_matrix(api_cooccur, api_list)
         scipy.sparse.save_npz('matrix_B.npz', matrix_B)
         print("B matrix saved")
-        del matrix_B
-        matrix_P = nx.adjacency_matrix(api_same_invoke, nodelist=api_list + config['invoke_types'])[-len(config['invoke_types']):, :-len(config['invoke_types'])]
-        matrix_P = matrix_P.transpose() @ matrix_P
-        scipy.sparse.save_npz('matrix_P.npz', matrix_P)
-        print("P matrix saved")
-        del matrix_P
+        del matrix_B, api_cooccur
         matrix_I = nx.adjacency_matrix(api_same_package, nodelist=api_list + package_list)[-len(package_list):, :-len(package_list)]
         matrix_I = matrix_I.transpose() @ matrix_I
         scipy.sparse.save_npz('matrix_I.npz', matrix_I)
         print("I matrix saved")
-        del matrix_I
+        del matrix_I, package_list, api_same_package
+        gc.collect()
+        # do api-api same-invoke last, takes up most memory
+        matrix_P = nx.adjacency_matrix(api_same_invoke, nodelist=api_list + config['invoke_types'])[-len(config['invoke_types']):, :-len(config['invoke_types'])]
+        matrix_P = matrix_P.transpose() @ matrix_P
+        scipy.sparse.save_npz('matrix_P.npz', matrix_P)
+        print("P matrix saved")
+        return
     elif targets[0] == 'data-test':
+        print("Running apktool on sample.apk")
         os.system('apktool d -r -b -f --no-assets -o data-test sample.apk')
+        print("Deleting non-smali files from data-test")
         os.system('find data-test -type f -not -name "*.smali" -exec rm -f {} \;')
+        print("Running process target on data-test with config.json parameters")
         return main(['process'], True)
 
 if __name__ == '__main__':
