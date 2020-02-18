@@ -21,7 +21,7 @@ def main(targets, test=False):
     if targets[0] == 'data':
         return download_and_process_apks(config['download_amount'], \
                 config['visit_probability'], config['download_probability'], \
-                config['size_limit'], config['base_url'])
+                config['size_limit'], config['base_url'], config['limit_per_link'])
     elif targets[0] == 'process':
         api_list = []
         app_list = []

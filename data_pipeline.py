@@ -25,14 +25,14 @@ def get_all_sitemap_links(url):
     r = requests.get(url)
     soup = BeautifulSoup(r.text, 'xml')
     return (x.find('loc').text for x in soup.find_all('sitemap'))
-def download_gzip_link(url, visit_probability=.5):
+def download_gzip_link(url, visit_probability=.5, limit_per_link=2):
     r = requests.get(url)
     with gzip.GzipFile(fileobj=io.BytesIO(r.content)) as f:
         result = f.read()
         soup = BeautifulSoup(result, 'xml')
-        return (x.get('href') for x in soup.find_all("xhtml:link", {
+        return (x.get('href') for i, x in enumerate(soup.find_all("xhtml:link", {
             "hreflang": "en"
-        })[5:] if x.get('media') is None and len(x.get('href').split('/')) == 5 and random.random() < visit_probability)
+        })[5:]) if x.get('media') is None and len(x.get('href').split('/')) == 5 and random.random() < visit_probability and i < limit_per_link)
 def download_from_app_page(url):
     r = requests.get(url)
     soup = BeautifulSoup(r.text, 'html.parser')
@@ -59,10 +59,10 @@ def download_from_app_page(url):
         else:
             if link:
                 print('ignoring because size is %f' % fsize)
-def download_and_process_apks(amount, download_probability=.5, visit_probability=.5, size_limit=50, base_url='https://apkpure.com'):
+def download_and_process_apks(amount, download_probability=.5, visit_probability=.5, size_limit=50, base_url='https://apkpure.com', limit_per_link=2):
     threads = []
     for x in get_all_sitemap_links(BASE_URL + '/sitemap.xml'):
-        for link in download_gzip_link(x, visit_probability):
+        for link in download_gzip_link(x, visit_probability, limit_per_link):
             if random.random() < DOWNLOAD_PROBABILITY:
                 download = download_from_app_page(link)
                 if download is not None:

@@ -2,6 +2,7 @@
     "base_url": "https://apkpure.com",
     "download_probability": 0.5,
     "visit_probability": 0.25,
+    "limit_per_link": 2,
     "size_limit": 50,
     "download_amount": 10,
     "path_benign": "data",
